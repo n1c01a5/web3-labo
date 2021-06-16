@@ -4,15 +4,19 @@ import Image from 'next/image'
 
 import Web3 from 'web3'
 
+import StorageABI from '../contract/storage.json'
+
 import styles from '../styles/Home.module.css'
 
 export default function Home() {
   const [isConnectedWeb3, setIsConnectedWeb3] = useState(false)
   const [accounts, setAccounts] = useState([])
   const [balance, setBalance] = useState(0)
-  const [web3, setWeb3] = useState({})
+  const [web3] = useState(new Web3(Web3.givenProvider || "ws://localhost:8545"))
   const [weiToSend, setWeiToSend] = useState(0)
   const [addressToSend, setAddressToSend] = useState("")
+  const [number, setNumber] = useState(0)
+  const [numberInput, setNumberInput] = useState(0)
 
   const connectToWeb3 = useCallback(
     async () => {
@@ -31,10 +35,6 @@ export default function Home() {
   )
 
   useEffect(() => {
-    const web3 = new Web3(Web3.givenProvider || "ws://localhost:8545")
-
-    setWeb3(web3)
-
     const getAccounts = async () => setAccounts(await web3.eth.getAccounts())
     const getBalance = async () => setBalance(await web3.eth.getBalance(accounts[0]))
 
@@ -47,6 +47,31 @@ export default function Home() {
       await web3.eth.sendTransaction({ from: accounts[0], to: addressToSend, value: weiToSend })
     },
     [accounts, addressToSend, weiToSend]
+  )
+
+  useEffect(() => {
+    const getNumber = async () => {
+      const storageContract = new web3.eth.Contract(
+        StorageABI,
+        "0xEEbCbE87BaB901B40e83ebB9F3483f3a3A7fd15b"
+      )
+
+      setNumber(await storageContract.methods.retrieve().call({ from: accounts[0]}))
+    }
+
+    getNumber()
+  }, [accounts])
+
+  const sendNewNumber = useCallback(
+    async () => {
+      const storageContract = new web3.eth.Contract(
+        StorageABI,
+        "0xEEbCbE87BaB901B40e83ebB9F3483f3a3A7fd15b"
+      )
+  
+      await storageContract.methods.store(numberInput).send({from: accounts[0]})
+    },
+    [accounts, numberInput]
   )
 
   return (
@@ -74,6 +99,12 @@ export default function Home() {
         <input type="number" onChange={e => setWeiToSend(e.target.value)} placeholder="Eth in wei" />
         <input type="text" onChange={e => setAddressToSend(e.target.value)} placeholder="address" />
         <button onClick={sendEth}>Send Eth</button>
+        <h2>Smart Contract Storage</h2>
+        <h2>Number</h2>
+        <p>{number}</p>
+        <h2>Set Number</h2>
+        <input type="number" onChange={e => setNumberInput(e.target.value)} placeholder="Number" />
+        <button onClick={sendNewNumber}>Send New Number</button>
       </main>
     </div>
   )
