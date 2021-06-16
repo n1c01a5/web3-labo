@@ -1,12 +1,14 @@
-import { useState, useCallback } from 'react'
-
+import { useState, useCallback, useEffect } from 'react'
 import Head from 'next/head'
 import Image from 'next/image'
+
+import Web3 from 'web3'
 
 import styles from '../styles/Home.module.css'
 
 export default function Home() {
   const [isConnectedWeb3, setIsConnectedWeb3] = useState(false)
+  const [web3, setWeb3] = useState({})
 
   const connectToWeb3 = useCallback(
     async () => {
@@ -23,6 +25,14 @@ export default function Home() {
       }
     }
   )
+
+  useEffect(() => {
+    const web3 = new Web3(Web3.givenProvider || "ws://localhost:8545")
+
+    setWeb3(web3)
+
+    console.log(web3) // web3 instance
+  }, [isConnectedWeb3])
 
   return (
     <div className={styles.container}>
