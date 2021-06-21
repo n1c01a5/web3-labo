@@ -17,6 +17,11 @@ export default function Home() {
   const [addressToSend, setAddressToSend] = useState("")
   const [number, setNumber] = useState(0)
   const [numberInput, setNumberInput] = useState(0)
+  const [events, setEvents] = useState([])
+  const [txHash, setTxHash] = useState("")
+  const [isMined, setIsMined] = useState(false)
+
+  const STORAGE_ADDR = "0xEEbCbE87BaB901B40e83ebB9F3483f3a3A7fd15b"
 
   const connectToWeb3 = useCallback(
     async () => {
@@ -35,11 +40,54 @@ export default function Home() {
   )
 
   useEffect(() => {
+    // Accounts
     const getAccounts = async () => setAccounts(await web3.eth.getAccounts())
     const getBalance = async () => setBalance(await web3.eth.getBalance(accounts[0]))
 
     if (accounts.length == 0) getAccounts()
     if (accounts.length > 0) getBalance()
+
+    // Events
+    const storageContract = new web3.eth.Contract(
+      StorageABI,
+      STORAGE_ADDR
+    )
+
+    const getEvents = async () => setEvents(
+      await storageContract.getPastEvents(
+        'SetNumber',
+        {
+          filter: {},
+          fromBlock: 25497336,
+          toBlock: 'latest'
+        }
+      )
+    )
+
+    getEvents()
+
+    // With then
+    // const events = await storageContract.getPastEvents(
+    //   'SetNumber',
+    //   {
+    //     filter: {},
+    //     fromBlock: 25497336,
+    //     toBlock: 'latest'
+    //   }
+    // ).then(events => setEvents(events.reverse()))
+
+    // With callback
+    // const events = await storageContract.getPastEvents(
+    //   'SetNumber',
+    //   {
+    //     filter: {},
+    //     fromBlock: 25497336,
+    //     toBlock: 'latest'
+    //   },
+    //   (err, res) => {
+    //     setEvents(res.reverse())
+    //   }
+    // )
   }, [isConnectedWeb3, accounts])
 
   const sendEth = useCallback(
@@ -53,25 +101,41 @@ export default function Home() {
     const getNumber = async () => {
       const storageContract = new web3.eth.Contract(
         StorageABI,
-        "0xEEbCbE87BaB901B40e83ebB9F3483f3a3A7fd15b"
+        STORAGE_ADDR
       )
 
-      setNumber(await storageContract.methods.retrieve().call({ from: accounts[0]}))
+      const number = await storageContract.methods.retrieve().call({ from: accounts[0]})
+
+      setNumber(number)
     }
 
     getNumber()
-  }, [accounts])
+  }, [])
 
   const sendNewNumber = useCallback(
     async () => {
       const storageContract = new web3.eth.Contract(
         StorageABI,
-        "0xEEbCbE87BaB901B40e83ebB9F3483f3a3A7fd15b"
+        STORAGE_ADDR
       )
   
       await storageContract.methods.store(numberInput).send({from: accounts[0]})
+        // .once('sending', payload => console.log(payload))
+        .once('transactionHash', (transactionHash) => setTxHash(transactionHash))
+        .on('confirmation', (confNumber, receipt) => {
+          setIsMined(true)
+          setNumber(receipt.events.SetNumber.returnValues[0])
+
+          console.log(receipt)
+        })
     },
     [accounts, numberInput]
+  )
+
+  const eventsItems = events.map((event, index) =>
+    <li key={index.toString()}>
+      {event.returnValues[0]}
+    </li>
   )
 
   return (
@@ -105,6 +169,21 @@ export default function Home() {
         <h2>Set Number</h2>
         <input type="number" onChange={e => setNumberInput(e.target.value)} placeholder="Number" />
         <button onClick={sendNewNumber}>Send New Number</button>
+        {
+          (txHash && !isMined) 
+            && 
+            <div>
+              <div className="lds-ring"><div></div><div></div><div></div><div></div></div>
+              <a href={`https://kovan.etherscan.io/tx/${txHash}`} target="_blank">
+                Loader ...
+              </a>
+            </div>
+        }
+        {
+          isMined && <p>Transaction Mined</p>
+        }
+        <h2>Events</h2>
+        <ul>{eventsItems}</ul>
       </main>
     </div>
   )
