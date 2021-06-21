@@ -174,7 +174,7 @@ export default function Home() {
             && 
             <div>
               <div className="lds-ring"><div></div><div></div><div></div><div></div></div>
-              <a href={`https://kovan.etherscan.io/tx/${txHash}`} target="_blank">
+              <a href={`https://kovan.etherscan.io/tx/${txHash}`} rel="noreferrer" target="_blank">
                 Loader ...
               </a>
             </div>
